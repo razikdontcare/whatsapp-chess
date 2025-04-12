@@ -2,7 +2,9 @@ import {
   makeWASocket,
   useMultiFileAuthState,
   proto,
+  DisconnectReason,
 } from "@whiskeysockets/baileys";
+import { Boom } from "@hapi/boom";
 import { ActiveGame } from "../config/types.js";
 import { ChessService } from "./chessService.js";
 import { Chess } from "chess.js";
@@ -27,6 +29,23 @@ export class WhatsAppService {
     });
 
     this.sock.ev.on("creds.update", saveCreds);
+    this.sock.ev.on("connection.update", (update) => {
+      const { connection, lastDisconnect } = update;
+      if (connection === "close") {
+        const shouldReconnect =
+          (lastDisconnect?.error as Boom)?.output?.statusCode !==
+          DisconnectReason.loggedOut;
+
+        if (shouldReconnect) {
+          console.log("Connection closed. Reconnecting...");
+          this.initialize();
+        } else {
+          console.log("Logged out. Please scan the QR code again.");
+        }
+      } else if (connection === "open") {
+        console.log("Connected to WhatsApp");
+      }
+    });
     this.sock.ev.on("messages.upsert", this.handleMessage.bind(this));
   }
 
