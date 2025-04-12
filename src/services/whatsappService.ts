@@ -6,10 +6,17 @@ import {
 import { ActiveGame, Player } from "../config/types.js";
 import { ChessService } from "./chessService.js";
 import { Chess } from "chess.js";
+import { StockfishService } from "./stockfishService.js";
 
 export class WhatsAppService {
   private sock: ReturnType<typeof makeWASocket> | null = null;
   private activeGames: Map<string, ActiveGame> = new Map();
+  private stockfish: StockfishService;
+
+  constructor() {
+    this.stockfish = new StockfishService();
+    this.stockfish.init().catch(console.error);
+  }
 
   async initialize() {
     const { state, saveCreds } = await useMultiFileAuthState("auth_info");
@@ -241,18 +248,199 @@ export class WhatsAppService {
     );
   }
 
-  private async handleMove(sender: string, moveNotation: string) {}
-  private async handleShowBoard(sender: string) {}
-  private async handleResign(sender: string) {}
-  private async handleShowMoves(sender: string) {}
-  private async handleUndoMove(sender: string) {}
-  private async handleHelp(sender: string, isGroup: boolean) {}
+  private async handleMove(sender: string, moveNotation: string) {
+    const game = this.getUserGame(sender);
+    if (!game) return;
 
-  private getUserGame(sender: string): ActiveGame | undefined {}
-  private getGameKey(sender: string): string | undefined {}
-  private handleAIMove(sender: string, game: ActiveGame) {}
-  private sendBoardUpdate(sender: string, game: ActiveGame) {}
-  private handleGameEnd(sender: string, game: ActiveGame) {}
+    if (
+      (game.currentTurn === "w" && sender !== game.players.white.jid) ||
+      (game.currentTurn === "b" && sender !== game.players.black.jid)
+    ) {
+      return this.sendMessage(sender, "Giliran Anda belum tiba.");
+    }
+
+    if (!moveNotation) {
+      return this.sendMessage(
+        sender,
+        "Format langkah tidak valid. Gunakan !move <notasi> untuk bermain.\nContoh: !move e4"
+      );
+    }
+
+    try {
+      const move = game.chess.move(moveNotation);
+      if (!move) {
+        return this.sendMessage(
+          sender,
+          "Langkah tidak valid. Silakan coba lagi."
+        );
+      }
+
+      game.lastMove = move.san;
+      game.currentTurn = game.currentTurn === "w" ? "b" : "w";
+
+      if (game.chess.isGameOver()) {
+        await this.handleGameEnd(sender, game);
+      } else if (game.mode === "ai") {
+        await this.handleAIMove(sender, game);
+      } else {
+        await this.sendBoardUpdate(sender, game);
+      }
+    } catch (error) {
+      await this.sendMessage(
+        sender,
+        `Gerakan tidak valid: ${error instanceof Error ? error.message : error}`
+      );
+    }
+  }
+
+  private async handleShowBoard(sender: string) {
+    const game = this.getUserGame(sender);
+    if (!game) return;
+
+    const status = ChessService.getGameStatus(game);
+    const turnMessage = `Giliran ${
+      game.currentTurn === "w" ? "Putih" : "Hitam"
+    } berikutnya.`;
+
+    await this.sendBoardImage(
+      game,
+      sender,
+      `${
+        game.lastMove ? `Gerakan terakhir: ${game.lastMove}\n` : ""
+      }${status}\n${turnMessage}`
+    );
+  }
+
+  private async handleResign(sender: string) {
+    const game = this.getUserGame(sender);
+    if (!game) return;
+
+    const winner = game.currentTurn === "w" ? "Hitam" : "Putih";
+    this.activeGames.delete(this.getGameKey(sender, game));
+
+    await this.sendMessage(
+      this.getGameKey(sender, game),
+      `Anda menyerah! ${winner} menang!\n\n` +
+        `Game berakhir.\n\n` +
+        `Jika Anda ingin bermain lagi, gunakan !chess atau !catur.\n\n` +
+        `Jika Anda ingin bermain melawan AI, gunakan !ai.`
+    );
+  }
+
+  private async handleShowMoves(sender: string) {
+    const game = this.getUserGame(sender);
+    if (!game) return;
+
+    const moves = game.chess.history();
+    if (moves.length === 0) {
+      return this.sendMessage(sender, "Belum ada langkah yang dilakukan.");
+    }
+
+    await this.sendMessage(
+      sender,
+      `*Daftar langkah:*\n` +
+        moves.map((move, index) => `${index + 1}. ${move}`).join("\n")
+    );
+  }
+
+  private async handleUndoMove(sender: string) {
+    const game = this.getUserGame(sender);
+    if (!game) return;
+
+    if (game.chess.history().length === 0) {
+      return this.sendMessage(
+        sender,
+        "Tidak ada langkah yang bisa dibatalkan."
+      );
+    }
+
+    game.chess.undo();
+    game.currentTurn = game.currentTurn === "w" ? "b" : "w";
+    game.lastMove = game.chess.history().at(-1);
+
+    await this.sendBoardUpdate(sender, game);
+  }
+
+  private async handleHelp(sender: string, isGroup: boolean) {
+    const helpText = [
+      "*ChessBot WhatsApp*",
+      "",
+      "Perintah dasar:",
+      "• !chess / !catur - Mulai game baru",
+      "• !chess ai / !catur ai - Main vs AI",
+      "• !ai - Main vs AI",
+      "• !move [notasi] / !gerak [notasi] - Lakukan gerakan",
+      "• !board / !papan - Lihat papan saat ini",
+      "• !resign / !menyerah - Menyerah",
+      "• !moves / !langkah - Lihat history gerakan",
+      "• !undo / !kembali - Batalkan gerakan terakhir",
+      "• !help / !bantuan - Tampilkan pesan ini",
+      "",
+      "Contoh gerakan:",
+      "• !move e4 (pawn ke e4)",
+      "• !move Nf3 (kuda ke f3)",
+      "• !move O-O (rokade pendek)",
+      "• !move exd5 (pawn di e capture di d5)",
+      "",
+      isGroup
+        ? "Di grup, gunakan !join untuk bergabung dengan game yang sudah dibuat"
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    await this.sendMessage(sender, helpText);
+  }
+
+  private getUserGame(sender: string): ActiveGame | undefined {
+    return (
+      this.activeGames.get(sender) ||
+      this.activeGames.get(sender.split("@")[0] + "@g.us")
+    );
+  }
+
+  private getGameKey(sender: string, game: ActiveGame): string {
+    return game.mode === "player" ? game.groupId! : sender;
+  }
+
+  private async handleAIMove(sender: string, game: ActiveGame) {
+    const aiMove = await this.stockfish.getBestMove(game.chess.fen());
+
+    game.chess.move(aiMove);
+    game.currentTurn = "w";
+    game.lastMove = aiMove;
+
+    if (game.chess.isGameOver()) {
+      await this.handleGameEnd(sender, game);
+    } else {
+      await this.sendBoardUpdate(sender, game);
+    }
+  }
+
+  private async sendBoardUpdate(sender: string, game: ActiveGame) {
+    const status = ChessService.getGameStatus(game);
+    const turnMessage = `Giliran ${
+      game.currentTurn === "w" ? "Putih" : "Hitam"
+    } berikutnya.`;
+
+    await this.sendBoardImage(
+      game,
+      this.getGameKey(sender, game),
+      `${
+        game.lastMove ? `Gerakan terakhir: ${game.lastMove}\n` : ""
+      }${status}\n${turnMessage}`
+    );
+  }
+
+  private async handleGameEnd(sender: string, game: ActiveGame) {
+    const status = ChessService.getGameStatus(game);
+    await this.sendBoardImage(
+      game,
+      this.getGameKey(sender, game),
+      `${game.lastMove ? `Gerakan terakhir: ${game.lastMove}\n` : ""}${status}`
+    );
+    this.activeGames.delete(this.getGameKey(sender, game));
+  }
 
   private getMessageText(msg: proto.IMessage): string | undefined {
     if (msg.conversation) return msg.conversation;
