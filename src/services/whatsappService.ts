@@ -341,8 +341,8 @@ export class WhatsAppService {
       this.getGameKey(sender, game),
       `Anda menyerah! ${winner} menang!\n\n` +
         `Game berakhir.\n\n` +
-        `Jika Anda ingin bermain lagi, gunakan !chess atau !catur.\n\n` +
-        `Jika Anda ingin bermain melawan AI, gunakan !ai.`
+        `Jika Anda ingin bermain lagi, gunakan !chess atau !catur.\n\n`
+      // `Jika Anda ingin bermain melawan AI, gunakan !ai.`
     );
   }
 
