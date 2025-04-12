@@ -3,12 +3,14 @@
   "module": "src/index.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun src/index.ts"
+    "dev": "concurrently \"tsc --watch\" \"nodemon\""
   },
   "devDependencies": {
     "@types/axios": "^0.14.4",
     "@types/bun": "latest",
-    "@types/sharp": "^0.32.0"
+    "@types/sharp": "^0.32.0",
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
