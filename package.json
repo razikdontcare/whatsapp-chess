@@ -2,6 +2,9 @@
   "name": "whatsapp-chess",
   "module": "src/index.ts",
   "type": "module",
+  "scripts": {
+    "dev": "bun src/index.ts"
+  },
   "devDependencies": {
     "@types/axios": "^0.14.4",
     "@types/bun": "latest",

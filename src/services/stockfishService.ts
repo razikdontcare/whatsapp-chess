@@ -1,4 +1,3 @@
-import { Chess } from "chess.js";
 import { STOCKFISH_LEVEL } from "../config/constants.js";
 
 declare const Stockfish: any;
