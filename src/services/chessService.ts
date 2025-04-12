@@ -11,11 +11,10 @@ import { ActiveGame, GameMode, Player } from "../config/types.js";
 export class ChessService {
   static async createBoardImage(fen: string): Promise<Buffer<ArrayBufferLike>> {
     try {
-      let imageUrl = `https://lichess.org/export/fen.gif?fen=${encodeURIComponent(
-        fen
-      )}&theme=brown&piece=merida`;
+      let imageUrl = `https://chessboardimage.com/${fen}.png`;
 
       const alternativeUrl = [
+        `https://chessboardimage.com/${fen}.png`,
         `https://lichess.org/export/fen.gif?fen=${encodeURIComponent(
           fen
         )}&theme=brown&piece=merida`,

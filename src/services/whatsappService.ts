@@ -153,14 +153,14 @@ export class WhatsAppService {
 
         default:
           if (command.startsWith("!")) {
-            await this.sendMessage(sender, "Perintah tidak dikenali.");
+            return await this.sendMessage(sender, "Perintah tidak dikenali.");
           }
-          if (isGroup && this.activeGames.has(sender)) {
-            await this.sendMessage(
-              sender,
-              "Perintah tidak dikenali. Silakan gunakan !help untuk daftar perintah yang tersedia."
-            );
-          }
+          //   if (isGroup && this.activeGames.has(sender)) {
+          //     return await this.sendMessage(
+          //       sender,
+          //       "Perintah tidak dikenali. Silakan gunakan !help untuk daftar perintah yang tersedia."
+          //     );
+          //   }
           break;
       }
     } catch (error) {
