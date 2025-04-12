@@ -82,6 +82,7 @@ export class WhatsAppService {
   ) {
     const args = text.trim().split(" ");
     const command = args[0].toLowerCase();
+
     const isGroup = sender.endsWith("@g.us");
 
     try {
@@ -93,7 +94,7 @@ export class WhatsAppService {
           //     await this.handleNewAIGame(sender);
           //   } else {
           // }
-          await this.handleNewGame(sender, isGroup);
+          await this.handleNewGame(sender, isGroup, msg);
           break;
 
         case "!join":
@@ -105,14 +106,14 @@ export class WhatsAppService {
             return;
           }
 
-          await this.handleJoinGame(sender, msg.key.remoteJid!);
+          await this.handleJoinGame(sender, msg.key.remoteJid!, msg);
           break;
 
         case "!move":
         case "!gerak":
         case "!m":
         case "!g":
-          await this.handleMove(sender, args.slice(1).join(" "));
+          await this.handleMove(sender, args.slice(1).join(" "), msg);
           break;
 
         case "!board":
@@ -125,7 +126,7 @@ export class WhatsAppService {
         case "!resign":
         case "!menyerah":
         case "!r":
-          await this.handleResign(sender);
+          await this.handleResign(sender, msg);
           break;
 
         // case "!ai":
@@ -172,11 +173,15 @@ export class WhatsAppService {
     }
   }
 
-  private async handleNewGame(sender: string, isGroup: boolean) {
+  private async handleNewGame(
+    sender: string,
+    isGroup: boolean,
+    msg: proto.IWebMessageInfo
+  ) {
     if (this.activeGames.has(sender)) {
       return this.sendMessage(
         sender,
-        "Anda sudah memiliki permainan aktif. Silakan gunakan !resign untuk menyerah."
+        "Sudah terdapat permainan aktif. Silakan gunakan !resign untuk menyerah."
       );
     }
 
@@ -184,8 +189,8 @@ export class WhatsAppService {
       chess: new Chess(),
       players: {
         white: {
-          jid: sender,
-          name: "Player 1",
+          jid: isGroup ? msg.key.participant! : sender,
+          name: msg.pushName || "Player 1",
         },
         black: {
           jid: isGroup ? "" : sender,
@@ -244,36 +249,51 @@ export class WhatsAppService {
   //     );
   //   }
 
-  private async handleJoinGame(sender: string, groupId: string) {
-    const game = this.activeGames.get(groupId);
+  private async handleJoinGame(
+    sender: string,
+    groupId: string,
+    msg: proto.IWebMessageInfo
+  ) {
+    const game = this.activeGames.get(sender);
     if (!game) {
-      return this.sendMessage(groupId, "Tidak ada game aktif di grup ini.");
+      return this.sendMessage(sender, "Tidak ada game aktif di grup ini.");
     }
 
     if (game.players.black.jid !== "") {
       return this.sendMessage(
-        groupId,
+        sender,
         "Game sudah dimulai. Tidak bisa bergabung."
       );
     }
 
-    game.players.black = { jid: sender, name: "Player 2" };
+    game.players.black = {
+      jid: msg.key.participant ?? sender,
+      name: msg.pushName || "Player 2",
+    };
     game.mode = "player";
+
+    // console.log(game);
 
     await this.sendBoardImage(
       game,
-      groupId,
-      `Game dimulai!\n${game.players.white.name} (Putih) vs ${game.players.black.name} (Hitam)\nSilakan gunakan !move <notasi> untuk melakukan langkah.\n\nContoh: !move e4. Giliran ${game.players.white.name} (Putih).`
+      sender,
+      `Game dimulai!\n${game.players.white.name} (Putih) vs ${game.players.black.name} (Hitam)\nSilakan gunakan !move <notasi> untuk melakukan langkah.\nContoh: !move e4.\n\nGiliran ${game.players.white.name} (Putih).`
     );
   }
 
-  private async handleMove(sender: string, moveNotation: string) {
+  private async handleMove(
+    sender: string,
+    moveNotation: string,
+    msg: proto.IWebMessageInfo
+  ) {
     const game = this.getUserGame(sender);
     if (!game) return;
 
     if (
-      (game.currentTurn === "w" && sender !== game.players.white.jid) ||
-      (game.currentTurn === "b" && sender !== game.players.black.jid)
+      (game.currentTurn === "w" &&
+        msg.key.participant !== game.players.white.jid) ||
+      (game.currentTurn === "b" &&
+        msg.key.participant !== game.players.black.jid)
     ) {
       return this.sendMessage(sender, "Giliran Anda belum tiba.");
     }
@@ -330,18 +350,30 @@ export class WhatsAppService {
     );
   }
 
-  private async handleResign(sender: string) {
+  private async handleResign(sender: string, msg: proto.IWebMessageInfo) {
     const game = this.getUserGame(sender);
     if (!game) return;
 
-    const winner = game.currentTurn === "w" ? "Hitam" : "Putih";
+    let winner =
+      msg.key.participant === game.players.white.jid
+        ? "Hitam"
+        : msg.key.participant === game.players.black.jid
+        ? "Putih"
+        : null;
+
+    if (!winner) return;
+
     this.activeGames.delete(this.getGameKey(sender, game));
 
     await this.sendMessage(
       this.getGameKey(sender, game),
-      `Anda menyerah! ${winner} menang!\n\n` +
+      `${
+        winner === "Hitam" ? game.players.white.name : game.players.black.name
+      } menyerah! ${
+        winner === "Hitam" ? game.players.black.name : game.players.white.name
+      } menang!\n\n` +
         `Game berakhir.\n\n` +
-        `Jika Anda ingin bermain lagi, gunakan !chess atau !catur.\n\n`
+        `Jika Anda ingin bermain lagi, gunakan !chess atau !catur.`
       // `Jika Anda ingin bermain melawan AI, gunakan !ai.`
     );
   }
