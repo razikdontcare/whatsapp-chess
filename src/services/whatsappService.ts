@@ -3,7 +3,7 @@ import {
   useMultiFileAuthState,
   proto,
 } from "@whiskeysockets/baileys";
-import { ActiveGame, Player } from "../config/types.js";
+import { ActiveGame } from "../config/types.js";
 import { ChessService } from "./chessService.js";
 import { Chess } from "chess.js";
 import { StockfishService } from "./stockfishService.js";
