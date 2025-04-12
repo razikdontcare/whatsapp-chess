@@ -1,0 +1,20 @@
+{
+  "name": "whatsapp-chess",
+  "module": "src/index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/axios": "^0.14.4",
+    "@types/bun": "latest",
+    "@types/sharp": "^0.32.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.16",
+    "axios": "^1.8.4",
+    "chess.js": "^1.2.0",
+    "sharp": "^0.34.1",
+    "stockfish.js": "^10.0.2"
+  }
+}
