@@ -6,16 +6,16 @@ import {
 import { ActiveGame } from "../config/types.js";
 import { ChessService } from "./chessService.js";
 import { Chess } from "chess.js";
-import { StockfishService } from "./stockfishService.js";
+// import { StockfishService } from "./stockfishService.js";
 
 export class WhatsAppService {
   private sock: ReturnType<typeof makeWASocket> | null = null;
   private activeGames: Map<string, ActiveGame> = new Map();
-  private stockfish: StockfishService;
+  //   private stockfish: StockfishService;
 
   constructor() {
-    this.stockfish = new StockfishService();
-    this.stockfish.init().catch(console.error);
+    // this.stockfish = new StockfishService();
+    // this.stockfish.init().catch(console.error);
   }
 
   async initialize() {
@@ -70,11 +70,11 @@ export class WhatsAppService {
         case "!chess":
         case "!catur":
         case "!c":
-          if (args[1]?.toLowerCase() === "ai") {
-            await this.handleNewAIGame(sender);
-          } else {
-            await this.handleNewGame(sender, isGroup);
-          }
+          //   if (args[1]?.toLowerCase() === "ai") {
+          //     await this.handleNewAIGame(sender);
+          //   } else {
+          // }
+          await this.handleNewGame(sender, isGroup);
           break;
 
         case "!join":
@@ -109,9 +109,9 @@ export class WhatsAppService {
           await this.handleResign(sender);
           break;
 
-        case "!ai":
-          await this.handleNewAIGame(sender);
-          break;
+        // case "!ai":
+        //   await this.handleNewAIGame(sender);
+        //   break;
 
         case "!moves":
         case "!gerakan":
@@ -204,26 +204,26 @@ export class WhatsAppService {
     }
   }
 
-  private async handleNewAIGame(sender: string) {
-    if (this.activeGames.has(sender)) {
-      return await this.sendMessage(
-        sender,
-        "Anda sudah memiliki permainan aktif. Silakan gunakan !resign untuk menyerah."
-      );
-    }
+  //   private async handleNewAIGame(sender: string) {
+  //     if (this.activeGames.has(sender)) {
+  //       return await this.sendMessage(
+  //         sender,
+  //         "Anda sudah memiliki permainan aktif. Silakan gunakan !resign untuk menyerah."
+  //       );
+  //     }
 
-    const game = ChessService.createNewGame("ai", {
-      jid: sender,
-      name: "Kamu",
-    });
-    this.activeGames.set(sender, game);
+  //     const game = ChessService.createNewGame("ai", {
+  //       jid: sender,
+  //       name: "Kamu",
+  //     });
+  //     this.activeGames.set(sender, game);
 
-    await this.sendBoardImage(
-      game,
-      sender,
-      "Mode VS AI dimulai! Kamu bermain sebagai putih.\nSilakan gunakan !move <notasi> untuk melakukan langkah.\n\nContoh: !move e4"
-    );
-  }
+  //     await this.sendBoardImage(
+  //       game,
+  //       sender,
+  //       "Mode VS AI dimulai! Kamu bermain sebagai putih.\nSilakan gunakan !move <notasi> untuk melakukan langkah.\n\nContoh: !move e4"
+  //     );
+  //   }
 
   private async handleJoinGame(sender: string, groupId: string) {
     const game = this.activeGames.get(groupId);
@@ -280,8 +280,8 @@ export class WhatsAppService {
 
       if (game.chess.isGameOver()) {
         await this.handleGameEnd(sender, game);
-      } else if (game.mode === "ai") {
-        await this.handleAIMove(sender, game);
+        //   } else if (game.mode === "ai") {
+        //     await this.handleAIMove(sender, game);
       } else {
         await this.sendBoardUpdate(sender, game);
       }
@@ -367,8 +367,8 @@ export class WhatsAppService {
       "",
       "Perintah dasar:",
       "• !chess / !catur - Mulai game baru",
-      "• !chess ai / !catur ai - Main vs AI",
-      "• !ai - Main vs AI",
+      //   "• !chess ai / !catur ai - Main vs AI",
+      //   "• !ai - Main vs AI",
       "• !move [notasi] / !gerak [notasi] - Lakukan gerakan",
       "• !board / !papan - Lihat papan saat ini",
       "• !resign / !menyerah - Menyerah",
@@ -403,19 +403,19 @@ export class WhatsAppService {
     return game.mode === "player" ? game.groupId! : sender;
   }
 
-  private async handleAIMove(sender: string, game: ActiveGame) {
-    const aiMove = await this.stockfish.getBestMove(game.chess.fen());
+  //   private async handleAIMove(sender: string, game: ActiveGame) {
+  //     const aiMove = await this.stockfish.getBestMove(game.chess.fen());
 
-    game.chess.move(aiMove);
-    game.currentTurn = "w";
-    game.lastMove = aiMove;
+  //     game.chess.move(aiMove);
+  //     game.currentTurn = "w";
+  //     game.lastMove = aiMove;
 
-    if (game.chess.isGameOver()) {
-      await this.handleGameEnd(sender, game);
-    } else {
-      await this.sendBoardUpdate(sender, game);
-    }
-  }
+  //     if (game.chess.isGameOver()) {
+  //       await this.handleGameEnd(sender, game);
+  //     } else {
+  //       await this.sendBoardUpdate(sender, game);
+  //     }
+  //   }
 
   private async sendBoardUpdate(sender: string, game: ActiveGame) {
     const status = ChessService.getGameStatus(game);
