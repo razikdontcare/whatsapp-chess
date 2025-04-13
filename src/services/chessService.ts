@@ -9,16 +9,17 @@ import {
 import { ActiveGame, GameMode, Player } from "../config/types.js";
 
 export class ChessService {
-  static async createBoardImage(fen: string): Promise<Buffer<ArrayBufferLike>> {
+  static async createBoardImage(
+    fen: string,
+    orientation: "w" | "b",
+    lastMove?: string
+  ): Promise<Buffer<ArrayBufferLike>> {
     try {
-      let imageUrl = `https://chessboardimage.com/${fen}.png`;
+      let imageUrl = `https://chessboardimage.com/${fen}${
+        lastMove && lastMove
+      }${orientation === "b" && "-flip"}.png`;
 
-      const alternativeUrl = [
-        `https://chessboardimage.com/${fen}.png`,
-        `https://lichess.org/export/fen.gif?fen=${encodeURIComponent(
-          fen
-        )}&theme=brown&piece=merida`,
-      ];
+      const alternativeUrl = [imageUrl];
 
       for (const url of alternativeUrl) {
         try {
@@ -35,6 +36,8 @@ export class ChessService {
           console.warn(`Failed to fetch image from ${url}`, error);
         }
       }
+
+      console.log("Image URL:", imageUrl);
 
       const response = await axios.get(imageUrl, {
         responseType: "arraybuffer",

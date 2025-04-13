@@ -13,6 +13,7 @@ import { Chess } from "chess.js";
 export class WhatsAppService {
   private sock: ReturnType<typeof makeWASocket> | null = null;
   private activeGames: Map<string, ActiveGame> = new Map();
+  private lastMove: string | undefined;
   //   private stockfish: StockfishService;
 
   constructor() {
@@ -106,7 +107,7 @@ export class WhatsAppService {
             return;
           }
 
-          await this.handleJoinGame(sender, msg.key.remoteJid!, msg);
+          await this.handleJoinGame(sender, msg);
           break;
 
         case "!move":
@@ -249,11 +250,7 @@ export class WhatsAppService {
   //     );
   //   }
 
-  private async handleJoinGame(
-    sender: string,
-    groupId: string,
-    msg: proto.IWebMessageInfo
-  ) {
+  private async handleJoinGame(sender: string, msg: proto.IWebMessageInfo) {
     const game = this.activeGames.get(sender);
     if (!game) {
       return this.sendMessage(sender, "Tidak ada game aktif di grup ini.");
@@ -307,12 +304,21 @@ export class WhatsAppService {
 
     try {
       const move = game.chess.move(moveNotation);
+
       if (!move) {
         return this.sendMessage(
           sender,
           "Langkah tidak valid. Silakan coba lagi."
         );
       }
+
+      this.lastMove = `${move.from}${move.to}`;
+
+      console.log(
+        `Move: ${move.san}, From: ${move.from}, To: ${
+          move.to
+        }, Color: ${game.chess.turn()}, this.lastMove: ${this.lastMove}`
+      );
 
       game.lastMove = move.san;
       game.currentTurn = game.currentTurn === "w" ? "b" : "w";
@@ -322,7 +328,7 @@ export class WhatsAppService {
         //   } else if (game.mode === "ai") {
         //     await this.handleAIMove(sender, game);
       } else {
-        await this.sendBoardUpdate(sender, game);
+        await this.sendBoardUpdate(sender, game, this.lastMove);
       }
     } catch (error) {
       await this.sendMessage(
@@ -346,7 +352,8 @@ export class WhatsAppService {
       sender,
       `${
         game.lastMove ? `Gerakan terakhir: ${game.lastMove}\n` : ""
-      }${status}\n${turnMessage}`
+      }${status}\n${turnMessage}`,
+      this.lastMove
     );
   }
 
@@ -468,7 +475,11 @@ export class WhatsAppService {
   //     }
   //   }
 
-  private async sendBoardUpdate(sender: string, game: ActiveGame) {
+  private async sendBoardUpdate(
+    sender: string,
+    game: ActiveGame,
+    lastMove?: string
+  ) {
     const status = ChessService.getGameStatus(game);
     const turnMessage = `Giliran ${
       game.currentTurn === "w" ? "Putih" : "Hitam"
@@ -479,7 +490,8 @@ export class WhatsAppService {
       this.getGameKey(sender, game),
       `${
         game.lastMove ? `Gerakan terakhir: ${game.lastMove}\n` : ""
-      }${status}\n${turnMessage}`
+      }${status}\n${turnMessage}`,
+      lastMove
     );
   }
 
@@ -504,10 +516,20 @@ export class WhatsAppService {
     await this.sock.sendMessage(recipient, { text });
   }
 
-  async sendBoardImage(game: ActiveGame, recipient: string, caption: string) {
+  async sendBoardImage(
+    game: ActiveGame,
+    recipient: string,
+    caption: string,
+    lastMove?: string
+  ) {
     try {
       if (!this.sock) throw new Error("WhatsApp socket is not initialized");
-      const boardImage = await ChessService.createBoardImage(game.chess.fen());
+      const boardImage = await ChessService.createBoardImage(
+        game.chess.fen(),
+        game.currentTurn,
+        lastMove
+      );
+
       const image = Buffer.from(boardImage);
 
       await this.sock.sendMessage(recipient, { image, caption });
