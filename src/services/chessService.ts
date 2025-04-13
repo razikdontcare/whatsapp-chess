@@ -37,8 +37,6 @@ export class ChessService {
         }
       }
 
-      console.log("Image URL:", imageUrl);
-
       const response = await axios.get(imageUrl, {
         responseType: "arraybuffer",
       });

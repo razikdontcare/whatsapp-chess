@@ -269,8 +269,6 @@ export class WhatsAppService {
     };
     game.mode = "player";
 
-    // console.log(game);
-
     await this.sendBoardImage(
       game,
       sender,
@@ -313,12 +311,6 @@ export class WhatsAppService {
       }
 
       this.lastMove = `${move.from}${move.to}`;
-
-      console.log(
-        `Move: ${move.san}, From: ${move.from}, To: ${
-          move.to
-        }, Color: ${game.chess.turn()}, this.lastMove: ${this.lastMove}`
-      );
 
       game.lastMove = move.san;
       game.currentTurn = game.currentTurn === "w" ? "b" : "w";
